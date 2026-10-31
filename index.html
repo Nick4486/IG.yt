@@ -5,49 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Loading...</title>
   <style>
-    :root { --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --sub: #888; --accent: #ff3b5c; }
+    :root { --bg: #121212; --card: #1e1e1e; --text: #f0f0f0; --sub: #8e8e93; --accent: #ff3b5c; }
+    * { box-sizing: border-box; }
     body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
     #redirect-screen { display: flex; height: 100vh; align-items: center; justify-content: center; color: var(--sub); font-size: 14px; }
-    #dashboard { display: none; max-width: 720px; margin: 0 auto; padding: 24px 16px; }
-    h1 { font-size: 20px; margin-bottom: 16px; font-weight: 600; }
-    .add-box { display: flex; gap: 8px; margin-bottom: 24px; }
-    input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid #333; background: var(--card); color: #fff; font-size: 14px; }
-    button { padding: 12px 18px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; }
-    button:disabled { opacity: 0.5; }
-    .video-card { background: var(--card); border-radius: 12px; padding: 14px; margin-bottom: 14px; display: flex; gap: 14px; align-items: center; }
-    .thumb { width: 120px; height: 68px; border-radius: 8px; object-fit: cover; background: #000; flex-shrink: 0; }
+    #dashboard { display: none; max-width: 600px; margin: 0 auto; padding: 20px 16px; }
+    h1 { font-size: 20px; margin: 0 0 16px; font-weight: 700; }
+    
+    .add-box { display: flex; gap: 8px; margin-bottom: 20px; }
+    input { flex: 1; min-width: 0; padding: 12px; border-radius: 10px; border: 1px solid #333; background: var(--card); color: #fff; font-size: 14px; outline: none; }
+    input:focus { border-color: var(--accent); }
+    .main-btn { padding: 0 16px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer; flex-shrink: 0; }
+    .main-btn:disabled { opacity: 0.5; }
+
+    .video-card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+    .card-top { display: flex; gap: 12px; align-items: flex-start; }
+    .thumb { width: 116px; height: 65px; border-radius: 8px; object-fit: cover; background: #000; flex-shrink: 0; }
     .info { flex: 1; min-width: 0; }
-    .title { font-size: 15px; font-weight: 600; margin: 0 0 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .meta { font-size: 12px; color: var(--sub); display: flex; gap: 12px; flex-wrap: wrap; }
-    .badge { background: rgba(255,59,92,0.15); color: var(--accent); padding: 4px 10px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; }
-    .copy-btn { background: #2c2c2c; color: #fff; padding: 6px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; border: none; }
-    .logs-box { margin-top: 10px; padding-top: 10px; border-top: 1px solid #2c2c2c; font-size: 12px; color: var(--sub); display: none; }
-    .log-item { padding: 3px 0; display: flex; justify-content: space-between; }
+    .title { font-size: 14px; font-weight: 600; line-height: 1.4; margin: 0 0 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+    .meta { font-size: 12px; color: var(--sub); }
+
+    .card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2a2a2a; }
+    .badge { background: rgba(255,59,92,0.15); color: var(--accent); padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; user-select: none; }
+    .copy-btn { background: #2c2c2e; color: #fff; padding: 7px 14px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; border: none; white-space: nowrap; }
+    .copy-btn:active { background: #3a3a3c; }
+
+    .logs-box { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #333; font-size: 12px; color: var(--sub); display: none; }
+    .log-item { padding: 4px 0; display: flex; justify-content: space-between; gap: 8px; }
   </style>
 </head>
 <body>
 
-  <!-- 轉址載入畫面（朋友點開時只會閃過這個） -->
   <div id="redirect-screen">正在前往 YouTube...</div>
 
-  <!-- 你的管理面板 -->
   <div id="dashboard">
     <h1>IG 限動影片分享紀錄面板</h1>
     <div class="add-box">
       <input type="text" id="yt-url" placeholder="貼上想分享的 YouTube 影片網址...">
-      <button id="add-btn" onclick="createLink()">生成連結</button>
+      <button class="main-btn" id="add-btn" onclick="createLink()">生成連結</button>
     </div>
     <div id="list">載入資料中...</div>
   </div>
 
   <script>
-    // 把下面這串換成你在 Google Apps Script 部署拿到的 /exec 網址
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxZ94DY5KOg6KJrYzZscnyziDxcUdaVPDrQkzJvs3-_HtC_Od-aQQglkw1qn3Y_5pFJ/exec";
+    // 記得把下面這串換成你的 Google Apps Script (/exec) 網址
+    const GAS_URL = "你的_GAS_網址_貼在這裡";
 
     const params = new URLSearchParams(window.location.search);
     const trackId = params.get('id');
 
-    // 判斷：如果網址有 ?id=xxx 就執行紀錄與轉址；沒有就顯示管理面板
     if (trackId) {
       const ua = navigator.userAgent;
       let device = "其他裝置";
@@ -55,7 +61,7 @@
       else if (/Android/i.test(ua)) device = "Android 手機";
       else if (/iPad/i.test(ua)) device = "iPad";
       else if (/Macintosh|Windows/i.test(ua)) device = "電腦";
-      if (/Instagram/i.test(ua)) device += " (IG內建瀏覽器)";
+      if (/Instagram/i.test(ua)) device += " (IG內建)";
 
       fetch(`${GAS_URL}?action=click&id=${trackId}&device=${encodeURIComponent(device)}`)
         .then(res => res.json())
@@ -69,14 +75,22 @@
       loadDashboard();
     }
 
-    // 解析 YouTube 影片 ID
+    // 自動把 2026-10-31T06:20:00.000Z 轉成乾淨的台灣時間格式
+    function formatTime(str, showSeconds = false) {
+      if (!str) return '';
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return str;
+      const pad = n => String(n).padStart(2, '0');
+      const base = `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return showSeconds ? `${base}:${pad(d.getSeconds())}` : base;
+    }
+
     function extractYtId(url) {
       const reg = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
       const match = url.match(reg);
       return match ? match[1] : null;
     }
 
-    // 新增連結（自動透過 noembed 抓取 YT 影片標題）
     async function createLink() {
       const input = document.getElementById('yt-url');
       const btn = document.getElementById('add-btn');
@@ -89,7 +103,8 @@
 
       let title = 'YouTube 影片';
       try {
-        const oembed = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytId}`).then(r => r.json());
+        // 改用 YouTube 官方 oembed 介面，抓標題更穩定
+        const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`).then(r => r.json());
         if (oembed.title) title = oembed.title;
       } catch (e) {}
 
@@ -100,7 +115,6 @@
       loadDashboard();
     }
 
-    // 載入面板資料
     async function loadDashboard() {
       const listEl = document.getElementById('list');
       const res = await fetch(`${GAS_URL}?action=getData`).then(r => r.json());
@@ -114,20 +128,20 @@
         const shareUrl = `${baseUrl}?id=${item.id}`;
         const itemLogs = res.logs.filter(l => l.id === item.id);
         const logsHtml = itemLogs.length
-          ? itemLogs.map(l => `<div class="log-item"><span>${l.timestamp}</span><span>${l.device}</span></div>`).join('')
+          ? itemLogs.map(l => `<div class="log-item"><span>${formatTime(l.timestamp, true)}</span><span>${l.device}</span></div>`).join('')
           : '尚無點擊明細';
 
         return `
-          <div style="background:var(--card);border-radius:12px;padding:14px;margin-bottom:14px;">
-            <div style="display:flex;gap:14px;align-items:center;">
+          <div class="video-card">
+            <div class="card-top">
               <img class="thumb" src="https://img.youtube.com/vi/${item.ytId}/mqdefault.jpg">
               <div class="info">
-                <div class="title">${item.title}</div>
-                <div class="meta">
-                  <span>分享日期：${item.createdAt}</span>
-                </div>
+                <div class="title">${item.title || 'YouTube 影片'}</div>
+                <div class="meta">分享於 ${formatTime(item.createdAt)}</div>
               </div>
-              <span class="badge" onclick="toggleLogs('${item.id}')" title="點擊展開明細">${item.clicks} 人點擊 ▾</span>
+            </div>
+            <div class="card-actions">
+              <span class="badge" onclick="toggleLogs('${item.id}')">${item.clicks} 人點擊 ▾</span>
               <button class="copy-btn" onclick="navigator.clipboard.writeText('${shareUrl}');this.innerText='已複製！'">複製連結</button>
             </div>
             <div class="logs-box" id="logs-${item.id}">${logsHtml}</div>
