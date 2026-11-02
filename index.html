@@ -52,7 +52,7 @@
   </div>
 
   <script>
-    // 記得把下面這串換成你的 Google Apps Script (/exec) 網址
+    // 已幫你填好專屬的 Google Apps Script 網址
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxZ94DY5KOg6KJrYzZscnyziDxcUdaVPDrQkzJvs3-_HtC_Od-aQQglkw1qn3Y_5pFJ/exec";
 
     const params = new URLSearchParams(window.location.search);
@@ -143,7 +143,6 @@
 
       const baseUrl = window.location.origin + window.location.pathname;
       listEl.innerHTML = res.links.map(item => {
-        // 優先使用後端產生的 is.gd 短網址，舊紀錄若沒有才用原網址
         const finalShareUrl = item.shortUrl || `${baseUrl}?id=${item.id}`;
         const itemLogs = res.logs.filter(l => l.id === item.id);
         const logsHtml = itemLogs.length
