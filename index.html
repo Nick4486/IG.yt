@@ -7,7 +7,7 @@
   <style>
     :root { --bg: #121212; --card: #1e1e1e; --text: #f0f0f0; --sub: #8e8e93; --accent: #ff3b5c; }
     * { box-sizing: border-box; }
-    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; background: var(--bg); color: var(--text); }
     #redirect-screen { display: flex; height: 100vh; align-items: center; justify-content: center; color: var(--sub); font-size: 14px; }
     #dashboard { display: none; max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; }
     
@@ -16,7 +16,6 @@
     .refresh-btn { background: #2c2c2e; color: var(--text); border: none; padding: 7px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px; }
     .refresh-btn:active { background: #3a3a3c; }
 
-    /* 功能 2：頂部總覽小數據卡 */
     .stats-bar { display: flex; gap: 10px; margin-bottom: 16px; }
     .stat-card { flex: 1; background: var(--card); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; border: 1px solid #262626; }
     .stat-label { font-size: 12px; color: var(--sub); }
@@ -29,7 +28,6 @@
     .main-btn { padding: 0 16px; border-radius: 10px; border: none; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer; flex-shrink: 0; }
     .main-btn:disabled { opacity: 0.5; }
 
-    /* 功能 5：排序切換列 */
     .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .toolbar-title { font-size: 13px; color: var(--sub); font-weight: 500; }
     .sort-group { display: flex; background: var(--card); padding: 3px; border-radius: 8px; border: 1px solid #2a2a2a; }
@@ -39,7 +37,6 @@
     .video-card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
     .card-top { display: flex; gap: 12px; align-items: flex-start; }
     
-    /* 功能 4：點擊縮圖預覽原片 */
     .thumb-link { position: relative; display: block; flex-shrink: 0; text-decoration: none; }
     .thumb { width: 116px; height: 65px; border-radius: 8px; object-fit: cover; background: #000; display: block; }
     .play-hint { position: absolute; inset: 0; background: rgba(0,0,0,0.35); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; opacity: 0.85; }
@@ -61,14 +58,27 @@
     .del-btn:hover { color: #ff453a; border-color: #ff453a; }
     .del-btn:disabled { opacity: 0.4; }
 
-    /* 點擊明細與 ✕ 刪除按鈕 */
     .logs-box { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #333; font-size: 12px; color: var(--sub); display: none; }
     .log-item { padding: 6px 0; display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid #252525; }
     .log-item:last-child { border-bottom: none; }
     .log-info { display: flex; justify-content: space-between; flex: 1; gap: 8px; }
     .log-del-btn { background: rgba(255,255,255,0.06); color: #999; border: none; width: 22px; height: 22px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .log-del-btn:hover { background: rgba(255,69,58,0.2); color: #ff453a; }
-    .log-del-btn:disabled { opacity: 0.3; }
+
+    /* 仿 YT 無進度條卡片產生器彈出視窗 */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); display: none; align-items: center; justify-content: center; z-index: 999; padding: 16px; }
+    .modal-box { background: #1c1c1e; border-radius: 16px; max-width: 460px; width: 100%; padding: 18px; border: 1px solid #333; max-height: 92vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .close-btn { background: transparent; border: none; color: #888; font-size: 20px; cursor: pointer; padding: 0 4px; }
+    canvas { width: 100%; height: auto; border-radius: 12px; background: #0f0f0f; display: block; margin-bottom: 12px; border: 1px solid #2c2c2e; }
+    .field-group { margin-bottom: 10px; }
+    .field-label { font-size: 12px; color: var(--sub); margin-bottom: 4px; display: block; }
+    .field-input { width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #333; background: #121212; color: #fff; font-size: 13px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-actions button { flex: 1; padding: 11px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #2c2c2e; color: #ddd; }
   </style>
 </head>
 <body>
@@ -81,7 +91,6 @@
       <button class="refresh-btn" id="refresh-btn" onclick="loadDashboard(true)">↻ 刷新數據</button>
     </div>
 
-    <!-- 功能 2：頂部總覽小數據 -->
     <div class="stats-bar">
       <div class="stat-card">
         <span class="stat-label">已分享影片</span>
@@ -98,7 +107,6 @@
       <button class="main-btn" id="add-btn" onclick="createLink()">生成連結</button>
     </div>
 
-    <!-- 功能 5：排序切換 -->
     <div class="toolbar">
       <span class="toolbar-title">分享清單（點縮圖可直接看原片）</span>
       <div class="sort-group">
@@ -110,13 +118,47 @@
     <div id="list">載入資料中...</div>
   </div>
 
+  <!-- 製作限動卡片視窗 -->
+  <div class="modal-overlay" id="card-modal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">製作無進度條 YT 限動圖</span>
+        <button class="close-btn" onclick="closeCardModal()">✕</button>
+      </div>
+      <canvas id="yt-canvas" width="1280" height="920"></canvas>
+      <div class="field-group">
+        <label class="field-label">影片標題</label>
+        <input type="text" class="field-input" id="card-title" oninput="drawYtCard()">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div class="field-group" style="flex:1;">
+          <label class="field-label">頻道名稱</label>
+          <input type="text" class="field-input" id="card-author" placeholder="例如：神仙補習班" oninput="drawYtCard()">
+        </div>
+        <div class="field-group" style="flex:1;">
+          <label class="field-label">觀看數與時間（選填）</label>
+          <input type="text" class="field-input" id="card-views" placeholder="例如：4.6萬  3 年前" oninput="drawYtCard()">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="document.getElementById('avatar-upload').click()">更換頻道頭像</button>
+        <input type="file" id="avatar-upload" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
+        <button class="btn-primary" onclick="downloadCanvasCard()">下載限動圖片</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    // 已填好你的 Google Apps Script 網址
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxZ94DY5KOg6KJrYzZscnyziDxcUdaVPDrQkzJvs3-_HtC_Od-aQQglkw1qn3Y_5pFJ/exec";
 
     let cachedData = { links: [], logs: [] };
     let currentSort = 'time';
     let openLogsSet = new Set();
+
+    // 畫布暫存物件
+    let currentCardYtId = '';
+    let loadedThumbImg = null;
+    let loadedAvatarImg = null;
 
     const params = new URLSearchParams(window.location.search);
     const trackId = params.get('id');
@@ -198,35 +240,225 @@
       loadDashboard();
     }
 
-    // 自動抓取最高畫質 YT 封面並直接觸發下載
-    async function downloadThumb(ytId, btn) {
-      const oldText = btn.innerText;
-      btn.innerText = '下載中...';
+    // 載入無跨域限制的圖片
+    function loadImgCrossOrigin(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          // 排除 YT 預設的 120x90 灰色無效縮圖
+          if (img.width <= 120 && url.includes('maxresdefault')) reject();
+          else resolve(img);
+        };
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    // 格式化觀看次數為「X.X萬」
+    function formatViewsCount(num) {
+      if (!num) return '';
+      if (num >= 10000) return (num / 10000).toFixed(1).replace(/\.0$/, '') + '萬';
+      return String(num);
+    }
+
+    // 開啟仿 YT 卡片製作器並自動抓取頻道名、觀看數與頭像
+    async function openCardGenerator(ytId, defaultTitle) {
+      currentCardYtId = ytId;
+      loadedThumbImg = null;
+      loadedAvatarImg = null;
+
+      document.getElementById('card-title').value = defaultTitle || 'YouTube 影片';
+      document.getElementById('card-author').value = '讀取頻道中...';
+      document.getElementById('card-views').value = '';
+      document.getElementById('card-modal').style.display = 'flex';
+
+      // 1. 先載入最高畫質封面圖
       const qualities = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault'];
-      
       for (const q of qualities) {
-        const imgUrl = `https://img.youtube.com/vi/${ytId}/${q}.jpg`;
         try {
-          const resp = await fetch(imgUrl);
-          if (resp.ok) {
-            const blob = await resp.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = `YT封面_${ytId}.jpg`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(blobUrl);
-            btn.innerText = '已下載！';
-            setTimeout(() => { btn.innerText = oldText; }, 1500);
-            return;
-          }
+          loadedThumbImg = await loadImgCrossOrigin(`https://img.youtube.com/vi/${ytId}/${q}.jpg`);
+          break;
         } catch (e) {}
       }
-      // 若瀏覽器阻擋跨網域直接下載，則自動開新分頁顯示最高畫質原圖供長按儲存
-      window.open(`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`, '_blank');
-      btn.innerText = oldText;
+      drawYtCard();
+
+      // 2. 抓取頻道名稱（透過官方 oembed）
+      try {
+        const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`).then(r => r.json());
+        if (oembed.author_name) {
+          document.getElementById('card-author').value = oembed.author_name;
+          drawYtCard();
+        }
+      } catch (e) {
+        document.getElementById('card-author').value = '';
+      }
+
+      // 3. 嘗試從公開 API 自動抓取「觀看次數」與「頻道圓形頭像」
+      try {
+        const piped = await fetch(`https://pipedapi.kavin.rocks/streams/${ytId}`).then(r => r.json());
+        if (piped.views) {
+          const vStr = formatViewsCount(piped.views);
+          document.getElementById('card-views').value = vStr;
+        }
+        if (piped.uploaderAvatar) {
+          loadedAvatarImg = await loadImgCrossOrigin(`https://images.weserv.nl/?url=${encodeURIComponent(piped.uploaderAvatar)}`);
+        }
+        drawYtCard();
+      } catch (e) {}
+    }
+
+    function closeCardModal() {
+      document.getElementById('card-modal').style.display = 'none';
+    }
+
+    function handleAvatarUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        const img = new Image();
+        img.onload = () => {
+          loadedAvatarImg = img;
+          drawYtCard();
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // 繪製圓角矩形輔助函式
+    function roundRectPath(ctx, x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    // 在 Canvas 上合成「無紅色進度條、無現正播放」的仿 YT 卡片
+    function drawYtCard() {
+      const canvas = document.getElementById('yt-canvas');
+      const ctx = canvas.getContext('2d');
+      const title = document.getElementById('card-title').value;
+      const author = document.getElementById('card-author').value;
+      const views = document.getElementById('card-views').value;
+
+      const pad = 32;
+      const thumbW = 1216;
+      const thumbH = 684;
+
+      // 1. 先計算標題會排成 1 行還是 2 行，動態決定圖片高度
+      ctx.font = 'bold 38px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif';
+      const maxTextW = 960;
+      let lines = [];
+      let cur = '';
+      for (const ch of title) {
+        if (ctx.measureText(cur + ch).width > maxTextW) {
+          lines.push(cur);
+          cur = ch;
+          if (lines.length === 2) break;
+        } else {
+          cur += ch;
+        }
+      }
+      if (lines.length < 2 && cur) lines.push(cur);
+      else if (lines.length === 2 && cur) lines[1] = lines[1].slice(0, -1) + '…';
+
+      canvas.height = lines.length > 1 ? 945 : 895;
+
+      // 2. 填滿 YouTube 深色背景 (#0f0f0f)
+      ctx.fillStyle = '#0f0f0f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // 3. 繪製乾淨的圓角封面圖（無紅條、無現正播放）
+      ctx.save();
+      roundRectPath(ctx, pad, pad, thumbW, thumbH, 28);
+      ctx.clip();
+      if (loadedThumbImg) {
+        // 等比例填滿 16:9 區塊
+        const scale = Math.max(thumbW / loadedThumbImg.width, thumbH / loadedThumbImg.height);
+        const sw = loadedThumbImg.width * scale;
+        const sh = loadedThumbImg.height * scale;
+        const sx = pad + (thumbW - sw) / 2;
+        const sy = pad + (thumbH - sh) / 2;
+        ctx.drawImage(loadedThumbImg, sx, sy, sw, sh);
+      } else {
+        ctx.fillStyle = '#222';
+        ctx.fillRect(pad, pad, thumbW, thumbH);
+      }
+      ctx.restore();
+
+      // 4. 繪製左下角圓形頻道頭像
+      const avX = pad + 44;
+      const avY = pad + thumbH + 74;
+      const avR = 44;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(avX, avY, avR, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      if (loadedAvatarImg) {
+        ctx.drawImage(loadedAvatarImg, avX - avR, avY - avR, avR * 2, avR * 2);
+      } else {
+        // 若沒抓到頭像則自動生成質感漸層圓形頭像＋頻道首字
+        const grad = ctx.createLinearGradient(avX - avR, avY - avR, avX + avR, avY + avR);
+        grad.addColorStop(0, '#ff3b5c');
+        grad.addColorStop(1, '#ff9500');
+        ctx.fillStyle = grad;
+        ctx.fillRect(avX - avR, avY - avR, avR * 2, avR * 2);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 38px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText((author || 'Y').trim().charAt(0), avX, avY + 2);
+      }
+      ctx.restore();
+
+      // 5. 繪製白色影片標題
+      ctx.fillStyle = '#f1f1f1';
+      ctx.font = 'bold 38px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      const textX = pad + 114;
+      let textY = pad + thumbH + 32;
+      lines.forEach(line => {
+        ctx.fillText(line, textX, textY);
+        textY += 50;
+      });
+
+      // 6. 繪製灰色頻道名稱與觀看數 (例如：神仙補習班  ▷ 4.6萬  3 年前)
+      ctx.fillStyle = '#aaaaaa';
+      ctx.font = '30px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif';
+      let subText = author || '';
+      if (views) subText += (subText ? '   ▷ ' : '▷ ') + views;
+      ctx.fillText(subText, textX, textY + 6);
+
+      // 7. 繪製右側三個垂直小白點圖示
+      const dotX = canvas.width - pad - 14;
+      const dotStartY = pad + thumbH + 46;
+      ctx.fillStyle = '#f1f1f1';
+      [0, 16, 32].forEach(offset => {
+        ctx.beginPath();
+        ctx.arc(dotX, dotStartY + offset, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function downloadCanvasCard() {
+      const canvas = document.getElementById('yt-canvas');
+      canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `YT限動卡_${currentCardYtId}.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 'image/png');
     }
 
     function copyText(text, btn) {
@@ -278,6 +510,7 @@
         const origYtUrl = item.url || `https://www.youtube.com/watch?v=${item.ytId}`;
         const itemLogs = logs.filter(l => l.id === item.id);
         const isOpen = openLogsSet.has(item.id);
+        const safeTitle = (item.title || 'YouTube 影片').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
         const logsHtml = itemLogs.length
           ? itemLogs.map(l => `
@@ -309,7 +542,7 @@
               <span class="badge" onclick="toggleLogs('${item.id}')">${item.clicks} 人點擊 ▾</span>
               <div class="btn-group">
                 <button class="del-btn" onclick="deleteLink('${item.id}', this)">刪除</button>
-                <button class="dl-btn" onclick="downloadThumb('${item.ytId}', this)">下載封面</button>
+                <button class="dl-btn" onclick="openCardGenerator('${item.ytId}', '${safeTitle}')">製作限動圖</button>
                 <button class="copy-btn" onclick="copyText('${finalShareUrl}', this)">複製短網址</button>
               </div>
             </div>
