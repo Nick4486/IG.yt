@@ -53,7 +53,7 @@
 
   <script>
     // 記得把下面這串換成你的 Google Apps Script (/exec) 網址
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbxZ94DY5KOg6KJrYzZscnyziDxcUdaVPDrQkzJvs3-_HtC_Od-aQQglkw1qn3Y_5pFJ/exec";
+    const GAS_URL = "你的_GAS_網址_貼在這裡";
 
     const params = new URLSearchParams(window.location.search);
     const trackId = params.get('id');
@@ -110,7 +110,8 @@
         if (oembed.title) title = oembed.title;
       } catch (e) {}
 
-      await fetch(`${GAS_URL}?action=add&ytId=${ytId}&title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`);
+      const baseUrl = window.location.origin + window.location.pathname;
+      await fetch(`${GAS_URL}?action=add&ytId=${ytId}&title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&base=${encodeURIComponent(baseUrl)}`);
       input.value = '';
       btn.disabled = false;
       btn.innerText = '生成連結';
@@ -142,7 +143,8 @@
 
       const baseUrl = window.location.origin + window.location.pathname;
       listEl.innerHTML = res.links.map(item => {
-        const shareUrl = `${baseUrl}?id=${item.id}`;
+        // 優先使用後端產生的 is.gd 短網址，舊紀錄若沒有才用原網址
+        const finalShareUrl = item.shortUrl || `${baseUrl}?id=${item.id}`;
         const itemLogs = res.logs.filter(l => l.id === item.id);
         const logsHtml = itemLogs.length
           ? itemLogs.map(l => `<div class="log-item"><span>${formatTime(l.timestamp, true)}</span><span>${l.device}</span></div>`).join('')
@@ -161,7 +163,7 @@
               <span class="badge" onclick="toggleLogs('${item.id}')">${item.clicks} 人點擊 ▾</span>
               <div class="btn-group">
                 <button class="del-btn" onclick="deleteLink('${item.id}', this)">刪除</button>
-                <button class="copy-btn" onclick="copyText('${shareUrl}', this)">複製連結</button>
+                <button class="copy-btn" onclick="copyText('${finalShareUrl}', this)">複製短網址</button>
               </div>
             </div>
             <div class="logs-box" id="logs-${item.id}">${logsHtml}</div>
