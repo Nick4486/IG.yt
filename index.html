@@ -50,12 +50,14 @@
     .title { font-size: 14px; font-weight: 600; line-height: 1.4; margin: 0 0 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
     .meta { font-size: 12px; color: var(--sub); }
 
-    .card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2a2a2a; }
-    .btn-group { display: flex; gap: 8px; align-items: center; }
-    .badge { background: rgba(255,59,92,0.15); color: var(--accent); padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; user-select: none; }
-    .copy-btn { background: #2c2c2e; color: #fff; padding: 7px 14px; font-size: 13px; font-weight: 500; border-radius: 8px; cursor: pointer; border: none; white-space: nowrap; }
+    .card-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid #2a2a2a; flex-wrap: wrap; gap: 8px; }
+    .btn-group { display: flex; gap: 6px; align-items: center; }
+    .badge { background: rgba(255,59,92,0.15); color: var(--accent); padding: 6px 10px; border-radius: 20px; font-weight: 600; font-size: 12px; cursor: pointer; white-space: nowrap; user-select: none; }
+    .copy-btn { background: #2c2c2e; color: #fff; padding: 7px 12px; font-size: 12px; font-weight: 500; border-radius: 8px; cursor: pointer; border: none; white-space: nowrap; }
     .copy-btn:active { background: #3a3a3c; }
-    .del-btn { background: transparent; color: #8e8e93; border: 1px solid #3a3a3c; padding: 6px 12px; font-size: 13px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+    .dl-btn { background: #252528; color: #d1d1d6; border: 1px solid #3a3a3c; padding: 6px 10px; font-size: 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
+    .dl-btn:active { background: #3a3a3c; }
+    .del-btn { background: transparent; color: #8e8e93; border: 1px solid #3a3a3c; padding: 6px 10px; font-size: 12px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
     .del-btn:hover { color: #ff453a; border-color: #ff453a; }
     .del-btn:disabled { opacity: 0.4; }
 
@@ -114,7 +116,7 @@
 
     let cachedData = { links: [], logs: [] };
     let currentSort = 'time';
-    let openLogsSet = new Set(); // 記住哪些卡片的明細已經被展開
+    let openLogsSet = new Set();
 
     const params = new URLSearchParams(window.location.search);
     const trackId = params.get('id');
@@ -188,13 +190,43 @@
       loadDashboard();
     }
 
-    // 刪除單筆點擊明細並讓點擊數 -1
     async function deleteSingleLog(id, row, btn) {
       btn.disabled = true;
       btn.innerText = '…';
-      openLogsSet.add(id); // 重繪時保持明細展開
+      openLogsSet.add(id);
       await fetch(`${GAS_URL}?action=deleteLog&id=${id}&row=${row}`);
       loadDashboard();
+    }
+
+    // 自動抓取最高畫質 YT 封面並直接觸發下載
+    async function downloadThumb(ytId, btn) {
+      const oldText = btn.innerText;
+      btn.innerText = '下載中...';
+      const qualities = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault'];
+      
+      for (const q of qualities) {
+        const imgUrl = `https://img.youtube.com/vi/${ytId}/${q}.jpg`;
+        try {
+          const resp = await fetch(imgUrl);
+          if (resp.ok) {
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = `YT封面_${ytId}.jpg`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+            btn.innerText = '已下載！';
+            setTimeout(() => { btn.innerText = oldText; }, 1500);
+            return;
+          }
+        } catch (e) {}
+      }
+      // 若瀏覽器阻擋跨網域直接下載，則自動開新分頁顯示最高畫質原圖供長按儲存
+      window.open(`https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`, '_blank');
+      btn.innerText = oldText;
     }
 
     function copyText(text, btn) {
@@ -227,7 +259,6 @@
       const links = [...cachedData.links];
       const logs = cachedData.logs || [];
 
-      // 更新頂部總覽數據
       document.getElementById('total-videos').innerText = links.length;
       const sumClicks = links.reduce((acc, cur) => acc + (Number(cur.clicks) || 0), 0);
       document.getElementById('total-clicks').innerText = sumClicks;
@@ -237,7 +268,6 @@
         return;
       }
 
-      // 依選擇排序
       if (currentSort === 'clicks') {
         links.sort((a, b) => (Number(b.clicks) || 0) - (Number(a.clicks) || 0));
       }
@@ -279,6 +309,7 @@
               <span class="badge" onclick="toggleLogs('${item.id}')">${item.clicks} 人點擊 ▾</span>
               <div class="btn-group">
                 <button class="del-btn" onclick="deleteLink('${item.id}', this)">刪除</button>
+                <button class="dl-btn" onclick="downloadThumb('${item.ytId}', this)">下載封面</button>
                 <button class="copy-btn" onclick="copyText('${finalShareUrl}', this)">複製短網址</button>
               </div>
             </div>
