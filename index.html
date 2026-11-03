@@ -130,6 +130,13 @@
         <label class="field-label">影片標題</label>
         <input type="text" class="field-input" id="card-title" oninput="drawYtCard()">
       </div>
+      <div class="field-group">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+          <label class="field-label" style="margin:0;">標題字體大小（左右滑動微調）</label>
+          <span id="font-size-val" style="font-size:12px; color:var(--accent); font-weight:600;">46px</span>
+        </div>
+        <input type="range" id="card-title-size" min="32" max="64" value="46" style="width:100%; accent-color:var(--accent); padding:0; cursor:pointer;" oninput="document.getElementById('font-size-val').innerText=this.value+'px'; drawYtCard()">
+      </div>
       <div style="display:flex; gap:8px;">
         <div class="field-group" style="flex:1;">
           <label class="field-label">頻道名稱</label>
@@ -155,7 +162,6 @@
     let currentSort = 'time';
     let openLogsSet = new Set();
 
-    // 畫布暫存物件
     let currentCardYtId = '';
     let loadedThumbImg = null;
     let loadedAvatarImg = null;
@@ -240,13 +246,11 @@
       loadDashboard();
     }
 
-    // 載入無跨域限制的圖片
     function loadImgCrossOrigin(url) {
       return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = () => {
-          // 排除 YT 預設的 120x90 灰色無效縮圖
           if (img.width <= 120 && url.includes('maxresdefault')) reject();
           else resolve(img);
         };
@@ -255,14 +259,12 @@
       });
     }
 
-    // 格式化觀看次數為「X.X萬」
     function formatViewsCount(num) {
       if (!num) return '';
       if (num >= 10000) return (num / 10000).toFixed(1).replace(/\.0$/, '') + '萬';
       return String(num);
     }
 
-    // 開啟仿 YT 卡片製作器並自動抓取頻道名、觀看數與頭像
     async function openCardGenerator(ytId, defaultTitle) {
       currentCardYtId = ytId;
       loadedThumbImg = null;
@@ -273,7 +275,6 @@
       document.getElementById('card-views').value = '';
       document.getElementById('card-modal').style.display = 'flex';
 
-      // 1. 先載入最高畫質封面圖
       const qualities = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault'];
       for (const q of qualities) {
         try {
@@ -283,7 +284,6 @@
       }
       drawYtCard();
 
-      // 2. 抓取頻道名稱（透過官方 oembed）
       try {
         const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`).then(r => r.json());
         if (oembed.author_name) {
@@ -294,7 +294,6 @@
         document.getElementById('card-author').value = '';
       }
 
-      // 3. 嘗試從公開 API 自動抓取「觀看次數」與「頻道圓形頭像」
       try {
         const piped = await fetch(`https://pipedapi.kavin.rocks/streams/${ytId}`).then(r => r.json());
         if (piped.views) {
@@ -327,7 +326,6 @@
       reader.readAsDataURL(file);
     }
 
-    // 繪製圓角矩形輔助函式
     function roundRectPath(ctx, x, y, w, h, r) {
       ctx.beginPath();
       ctx.moveTo(x + r, y);
@@ -338,20 +336,21 @@
       ctx.closePath();
     }
 
-    // 在 Canvas 上合成「無紅色進度條、無現正播放」的仿 YT 卡片
     function drawYtCard() {
       const canvas = document.getElementById('yt-canvas');
       const ctx = canvas.getContext('2d');
       const title = document.getElementById('card-title').value;
       const author = document.getElementById('card-author').value;
       const views = document.getElementById('card-views').value;
+      const titleSize = Number(document.getElementById('card-title-size').value) || 46;
+      const lineHeight = Math.round(titleSize * 1.32);
 
       const pad = 32;
       const thumbW = 1216;
       const thumbH = 684;
 
-      // 1. 先計算標題會排成 1 行還是 2 行，動態決定圖片高度
-      ctx.font = 'bold 38px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif';
+      // 1. 根據你目前調整的字體大小計算自動換行（最多 2 行）
+      ctx.font = `bold ${titleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif`;
       const maxTextW = 960;
       let lines = [];
       let cur = '';
@@ -367,18 +366,17 @@
       if (lines.length < 2 && cur) lines.push(cur);
       else if (lines.length === 2 && cur) lines[1] = lines[1].slice(0, -1) + '…';
 
-      canvas.height = lines.length > 1 ? 945 : 895;
+      canvas.height = pad + thumbH + 32 + (lines.length * lineHeight) + 64;
 
-      // 2. 填滿 YouTube 深色背景 (#0f0f0f)
+      // 2. 填滿深色背景 (#0f0f0f)
       ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 3. 繪製乾淨的圓角封面圖（無紅條、無現正播放）
+      // 3. 繪製圓角封面圖
       ctx.save();
       roundRectPath(ctx, pad, pad, thumbW, thumbH, 28);
       ctx.clip();
       if (loadedThumbImg) {
-        // 等比例填滿 16:9 區塊
         const scale = Math.max(thumbW / loadedThumbImg.width, thumbH / loadedThumbImg.height);
         const sw = loadedThumbImg.width * scale;
         const sh = loadedThumbImg.height * scale;
@@ -403,7 +401,6 @@
       if (loadedAvatarImg) {
         ctx.drawImage(loadedAvatarImg, avX - avR, avY - avR, avR * 2, avR * 2);
       } else {
-        // 若沒抓到頭像則自動生成質感漸層圓形頭像＋頻道首字
         const grad = ctx.createLinearGradient(avX - avR, avY - avR, avX + avR, avY + avR);
         grad.addColorStop(0, '#ff3b5c');
         grad.addColorStop(1, '#ff9500');
@@ -417,21 +414,22 @@
       }
       ctx.restore();
 
-      // 5. 繪製白色影片標題
+      // 5. 繪製白色影片標題（套用滑桿字體大小）
       ctx.fillStyle = '#f1f1f1';
-      ctx.font = 'bold 38px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif';
+      ctx.font = `bold ${titleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif`;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'top';
       const textX = pad + 114;
-      let textY = pad + thumbH + 32;
+      let textY = pad + thumbH + 30;
       lines.forEach(line => {
         ctx.fillText(line, textX, textY);
-        textY += 50;
+        textY += lineHeight;
       });
 
-      // 6. 繪製灰色頻道名稱與觀看數 (例如：神仙補習班  ▷ 4.6萬  3 年前)
+      // 6. 繪製灰色頻道名稱與觀看數（字體大小也會稍微跟著標題比例微調）
+      const subSize = Math.max(28, Math.round(titleSize * 0.68));
       ctx.fillStyle = '#aaaaaa';
-      ctx.font = '30px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif';
+      ctx.font = `${subSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif`;
       let subText = author || '';
       if (views) subText += (subText ? '   ▷ ' : '▷ ') + views;
       ctx.fillText(subText, textX, textY + 6);
