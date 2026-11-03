@@ -143,7 +143,7 @@
           <input type="text" class="field-input" id="card-author" placeholder="輸入頻道名稱" oninput="drawYtCard()">
         </div>
         <div class="field-group" style="flex:1;">
-          <label class="field-label">觀看數與時間（選填）</label>
+          <label class="field-label">觀看數與時間</label>
           <input type="text" class="field-input" id="card-views" placeholder="例如：4.6萬  3 年前" oninput="drawYtCard()">
         </div>
       </div>
@@ -221,8 +221,7 @@
         if (oembed.title) title = oembed.title;
       } catch (e) {}
 
-      const baseUrl = window.location.origin + window.location.pathname;
-      await fetch(`${GAS_URL}?action=add&ytId=${ytId}&title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}&base=${encodeURIComponent(baseUrl)}`);
+      await fetch(`${GAS_URL}?action=add&ytId=${ytId}&title=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`);
       input.value = '';
       btn.disabled = false;
       btn.innerText = '生成連結';
@@ -259,27 +258,6 @@
       });
     }
 
-    function formatViewsCount(num) {
-      if (!num) return '';
-      if (num >= 10000) return (num / 10000).toFixed(1).replace(/\.0$/, '') + '萬';
-      return String(num);
-    }
-
-    function calcRelativeYears(unixSecOrDateStr) {
-      if (!unixSecOrDateStr) return '';
-      const d = typeof unixSecOrDateStr === 'number' ? new Date(unixSecOrDateStr * 1000) : new Date(unixSecOrDateStr);
-      if (isNaN(d.getTime())) return '';
-      const diffSec = Math.max(0, (Date.now() - d.getTime()) / 1000);
-      const years = Math.floor(diffSec / 31536000);
-      if (years >= 1) return `${years} 年前`;
-      const months = Math.floor(diffSec / 2592000);
-      if (months >= 1) return `${months} 個月前`;
-      const days = Math.floor(diffSec / 86400);
-      if (days >= 1) return `${days} 天前`;
-      return '剛剛';
-    }
-
-    // 多通道自動備援抓取：確保頻道名稱秒出，再抓觀看數與圓形頭像
     async function openCardGenerator(ytId, defaultTitle) {
       currentCardYtId = ytId;
       loadedThumbImg = null;
@@ -293,7 +271,7 @@
       viewsInput.value = '';
       document.getElementById('card-modal').style.display = 'flex';
 
-      // 1. 先載入高畫質封面圖
+      // 1. 載入高畫質封面圖
       const qualities = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault'];
       for (const q of qualities) {
         try {
@@ -303,7 +281,7 @@
       }
       drawYtCard();
 
-      // 2. 第一時間用 YouTube 官方 oembed 保底抓出頻道名稱（0.1秒完成，絕不卡住）
+      // 2. 先用官方 oembed 0.1 秒抓出頻道名稱保底
       try {
         const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`).then(r => r.json());
         if (oembed.author_name) {
@@ -312,52 +290,23 @@
         }
       } catch (e) {}
 
-      // 3. 嘗試透過你的 GAS 後端抓取（若有部署新版本就會成功）
-      let gotDetails = false;
+      // 3. 呼叫 GAS 內建的官方 YouTube Data API v3 抓頭貼、觀看數與發布時間
       try {
         const info = await fetch(`${GAS_URL}?action=ytInfo&ytId=${ytId}`).then(r => r.json());
-        if (info && (info.views || info.avatar)) {
-          if (info.author && !authorInput.value) authorInput.value = info.author;
+        if (info && info.status === 'ok') {
+          if (info.author) authorInput.value = info.author;
           if (info.views) viewsInput.value = info.views;
           if (info.avatar) {
             const avImg = new Image();
-            avImg.onload = () => { loadedAvatarImg = avImg; drawYtCard(); };
+            avImg.onload = () => {
+              loadedAvatarImg = avImg;
+              drawYtCard();
+            };
             avImg.src = info.avatar;
           }
-          gotDetails = true;
           drawYtCard();
         }
       } catch (e) {}
-
-      // 4. 若 GAS 沒回傳頭像或觀看數，自動輪詢多個公開 API 節點備援
-      if (!gotDetails) {
-        const apis = [
-          `https://inv.tux.pizza/api/v1/videos/${ytId}`,
-          `https://invidious.nerdvpn.de/api/v1/videos/${ytId}`,
-          `https://pipedapi.kavin.rocks/streams/${ytId}`
-        ];
-        for (const apiUrl of apis) {
-          try {
-            const data = await fetch(apiUrl).then(r => r.json());
-            const vCount = data.viewCount || data.views;
-            if (vCount) {
-              const vStr = formatViewsCount(vCount);
-              const tStr = calcRelativeYears(data.published || data.uploadDate);
-              viewsInput.value = [vStr, tStr].filter(Boolean).join('  ');
-            }
-            if (!authorInput.value && (data.author || data.uploader)) {
-              authorInput.value = data.author || data.uploader;
-            }
-            let avUrl = data.uploaderAvatar || (data.authorThumbnails && data.authorThumbnails[data.authorThumbnails.length - 1]?.url);
-            if (avUrl) {
-              if (avUrl.startsWith('//')) avUrl = 'https:' + avUrl;
-              loadedAvatarImg = await loadImgCrossOrigin(`https://images.weserv.nl/?url=${encodeURIComponent(avUrl)}`);
-            }
-            drawYtCard();
-            if (vCount || loadedAvatarImg) break;
-          } catch (e) {}
-        }
-      }
     }
 
     function closeCardModal() {
@@ -592,9 +541,10 @@
         links.sort((a, b) => (Number(b.clicks) || 0) - (Number(a.clicks) || 0));
       }
 
+      // 直接使用你當前打開面板的網址 (Vercel 或 GitHub)，徹底棄用 TinyURL
       const baseUrl = window.location.origin + window.location.pathname;
       listEl.innerHTML = links.map(item => {
-        const finalShareUrl = item.shortUrl || `${baseUrl}?id=${item.id}`;
+        const directShareUrl = `${baseUrl}?id=${item.id}`;
         const origYtUrl = item.url || `https://www.youtube.com/watch?v=${item.ytId}`;
         const itemLogs = logs.filter(l => l.id === item.id);
         const isOpen = openLogsSet.has(item.id);
@@ -631,7 +581,7 @@
               <div class="btn-group">
                 <button class="del-btn" onclick="deleteLink('${item.id}', this)">刪除</button>
                 <button class="dl-btn" onclick="openCardGenerator('${item.ytId}', '${safeTitle}')">製作限動圖</button>
-                <button class="copy-btn" onclick="copyText('${finalShareUrl}', this)">複製短網址</button>
+                <button class="copy-btn" onclick="copyText('${directShareUrl}', this)">複製連結</button>
               </div>
             </div>
             <div class="logs-box" id="logs-${item.id}" style="display:${isOpen ? 'block' : 'none'};">${logsHtml}</div>
