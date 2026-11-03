@@ -140,11 +140,11 @@
       <div style="display:flex; gap:8px;">
         <div class="field-group" style="flex:1;">
           <label class="field-label">頻道名稱</label>
-          <input type="text" class="field-input" id="card-author" placeholder="讀取中..." oninput="drawYtCard()">
+          <input type="text" class="field-input" id="card-author" placeholder="輸入頻道名稱" oninput="drawYtCard()">
         </div>
         <div class="field-group" style="flex:1;">
-          <label class="field-label">觀看數與時間</label>
-          <input type="text" class="field-input" id="card-views" placeholder="讀取中..." oninput="drawYtCard()">
+          <label class="field-label">觀看數與時間（選填）</label>
+          <input type="text" class="field-input" id="card-views" placeholder="例如：4.6萬  3 年前" oninput="drawYtCard()">
         </div>
       </div>
       <div class="modal-actions">
@@ -259,18 +259,41 @@
       });
     }
 
-    // 開啟製作視窗並透過 GAS 後端穩定抓取頻道頭像與觀看數
+    function formatViewsCount(num) {
+      if (!num) return '';
+      if (num >= 10000) return (num / 10000).toFixed(1).replace(/\.0$/, '') + '萬';
+      return String(num);
+    }
+
+    function calcRelativeYears(unixSecOrDateStr) {
+      if (!unixSecOrDateStr) return '';
+      const d = typeof unixSecOrDateStr === 'number' ? new Date(unixSecOrDateStr * 1000) : new Date(unixSecOrDateStr);
+      if (isNaN(d.getTime())) return '';
+      const diffSec = Math.max(0, (Date.now() - d.getTime()) / 1000);
+      const years = Math.floor(diffSec / 31536000);
+      if (years >= 1) return `${years} 年前`;
+      const months = Math.floor(diffSec / 2592000);
+      if (months >= 1) return `${months} 個月前`;
+      const days = Math.floor(diffSec / 86400);
+      if (days >= 1) return `${days} 天前`;
+      return '剛剛';
+    }
+
+    // 多通道自動備援抓取：確保頻道名稱秒出，再抓觀看數與圓形頭像
     async function openCardGenerator(ytId, defaultTitle) {
       currentCardYtId = ytId;
       loadedThumbImg = null;
       loadedAvatarImg = null;
 
+      const authorInput = document.getElementById('card-author');
+      const viewsInput = document.getElementById('card-views');
+
       document.getElementById('card-title').value = defaultTitle || 'YouTube 影片';
-      document.getElementById('card-author').value = '讀取中...';
-      document.getElementById('card-views').value = '讀取中...';
+      authorInput.value = '';
+      viewsInput.value = '';
       document.getElementById('card-modal').style.display = 'flex';
 
-      // 1. 載入高畫質封面
+      // 1. 先載入高畫質封面圖
       const qualities = ['maxresdefault', 'sddefault', 'hqdefault', 'mqdefault'];
       for (const q of qualities) {
         try {
@@ -280,24 +303,60 @@
       }
       drawYtCard();
 
-      // 2. 透過你的 GAS 後端直接抓取頻道名、觀看數、相對時間與 Base64 頭像
+      // 2. 第一時間用 YouTube 官方 oembed 保底抓出頻道名稱（0.1秒完成，絕不卡住）
+      try {
+        const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`).then(r => r.json());
+        if (oembed.author_name) {
+          authorInput.value = oembed.author_name;
+          drawYtCard();
+        }
+      } catch (e) {}
+
+      // 3. 嘗試透過你的 GAS 後端抓取（若有部署新版本就會成功）
+      let gotDetails = false;
       try {
         const info = await fetch(`${GAS_URL}?action=ytInfo&ytId=${ytId}`).then(r => r.json());
-        document.getElementById('card-author').value = info.author || '';
-        document.getElementById('card-views').value = info.views || '';
-        if (info.avatar) {
-          const avImg = new Image();
-          avImg.onload = () => {
-            loadedAvatarImg = avImg;
-            drawYtCard();
-          };
-          avImg.src = info.avatar;
+        if (info && (info.views || info.avatar)) {
+          if (info.author && !authorInput.value) authorInput.value = info.author;
+          if (info.views) viewsInput.value = info.views;
+          if (info.avatar) {
+            const avImg = new Image();
+            avImg.onload = () => { loadedAvatarImg = avImg; drawYtCard(); };
+            avImg.src = info.avatar;
+          }
+          gotDetails = true;
+          drawYtCard();
         }
-        drawYtCard();
-      } catch (e) {
-        document.getElementById('card-author').value = '';
-        document.getElementById('card-views').value = '';
-        drawYtCard();
+      } catch (e) {}
+
+      // 4. 若 GAS 沒回傳頭像或觀看數，自動輪詢多個公開 API 節點備援
+      if (!gotDetails) {
+        const apis = [
+          `https://inv.tux.pizza/api/v1/videos/${ytId}`,
+          `https://invidious.nerdvpn.de/api/v1/videos/${ytId}`,
+          `https://pipedapi.kavin.rocks/streams/${ytId}`
+        ];
+        for (const apiUrl of apis) {
+          try {
+            const data = await fetch(apiUrl).then(r => r.json());
+            const vCount = data.viewCount || data.views;
+            if (vCount) {
+              const vStr = formatViewsCount(vCount);
+              const tStr = calcRelativeYears(data.published || data.uploadDate);
+              viewsInput.value = [vStr, tStr].filter(Boolean).join('  ');
+            }
+            if (!authorInput.value && (data.author || data.uploader)) {
+              authorInput.value = data.author || data.uploader;
+            }
+            let avUrl = data.uploaderAvatar || (data.authorThumbnails && data.authorThumbnails[data.authorThumbnails.length - 1]?.url);
+            if (avUrl) {
+              if (avUrl.startsWith('//')) avUrl = 'https:' + avUrl;
+              loadedAvatarImg = await loadImgCrossOrigin(`https://images.weserv.nl/?url=${encodeURIComponent(avUrl)}`);
+            }
+            drawYtCard();
+            if (vCount || loadedAvatarImg) break;
+          } catch (e) {}
+        }
       }
     }
 
@@ -332,12 +391,10 @@
 
     // 仿 YouTube 智慧換行演算法（支援標點符號避頭點、避尾點、英文單字不切斷）
     function wrapYtTitle(ctx, text, maxWidth) {
-      // 將連續英數字視為一個詞，單一中文字或標點視為獨立單位
       const rawTokens = text.match(/[a-zA-Z0-9_.\-]+|\s+|./g) || [];
       const noStartRe = /^[，、。．！？；：）》」』】〉》〕〗〙〛—…～·,.\!\?;:\)\]\}\>]/;
       const noEndRe = /[（《「『【〈《〔〖〘〚\(\[\{\<]$/;
 
-      // 將避頭點標點直接綁定在前一個字後面，將避尾點標點綁定在後一個字前面
       const units = [];
       for (const tk of rawTokens) {
         if (units.length > 0 && noStartRe.test(tk)) {
@@ -354,12 +411,11 @@
 
       for (let i = 0; i < units.length; i++) {
         const u = units[i];
-        if (cur === '' && /^\s+$/.test(u)) continue; // 忽略行首空白
+        if (cur === '' && /^\s+$/.test(u)) continue;
 
         if (ctx.measureText(cur + u).width <= maxWidth) {
           cur += u;
         } else {
-          // 如果單一詞組本身就超過整行寬度，才逐字切開
           if (cur === '') {
             let sub = '';
             for (const ch of u) {
@@ -379,7 +435,6 @@
       }
       if (cur) lines.push(cur);
 
-      // 限制最多 2 行，超過則在第二行尾端加上省略號
       if (lines.length > 2) {
         let second = lines[1];
         while (second.length > 0 && ctx.measureText(second + '…').width > maxWidth) {
@@ -403,18 +458,15 @@
       const thumbW = 1216;
       const thumbH = 684;
 
-      // 1. 使用智慧避頭點換行計算標題行數
       ctx.font = `bold ${titleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif`;
       const maxTextW = 970;
       const lines = wrapYtTitle(ctx, title, maxTextW);
 
       canvas.height = pad + thumbH + 32 + (lines.length * lineHeight) + 64;
 
-      // 2. 填滿深色背景 (#0f0f0f)
       ctx.fillStyle = '#0f0f0f';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 3. 繪製圓角封面圖
       ctx.save();
       roundRectPath(ctx, pad, pad, thumbW, thumbH, 28);
       ctx.clip();
@@ -431,7 +483,6 @@
       }
       ctx.restore();
 
-      // 4. 繪製左下角圓形頻道頭像
       const avX = pad + 44;
       const avY = pad + thumbH + 74;
       const avR = 44;
@@ -456,7 +507,6 @@
       }
       ctx.restore();
 
-      // 5. 繪製白色影片標題
       ctx.fillStyle = '#f1f1f1';
       ctx.font = `bold ${titleSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif`;
       ctx.textAlign = 'left';
@@ -468,7 +518,6 @@
         textY += lineHeight;
       });
 
-      // 6. 繪製灰色頻道名稱與觀看數
       const subSize = Math.max(28, Math.round(titleSize * 0.68));
       ctx.fillStyle = '#aaaaaa';
       ctx.font = `${subSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif`;
@@ -476,7 +525,6 @@
       if (views) subText += (subText ? '   ▷ ' : '▷ ') + views;
       ctx.fillText(subText, textX, textY + 6);
 
-      // 7. 繪製右側三個垂直小白點圖示
       const dotX = canvas.width - pad - 14;
       const dotStartY = pad + thumbH + 46;
       ctx.fillStyle = '#f1f1f1';
